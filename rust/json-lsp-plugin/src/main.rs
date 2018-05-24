@@ -1,20 +1,11 @@
 extern crate xi_lsp_lib;
 
-use xi_lsp_lib::LspPlugin;
-
-struct JSONLspPlugin {
-    
-}
-
-impl LspPlugin for JSONLspPlugin {
-
-    fn init_language_server() -> bool {
-
-    }
-
-}
+use xi_lsp_lib::{LSPPlugin, start_language_server};
 
 fn main() {
 
-    println!("Hello, world!");
+    let lsp_process = start_language_server("vscode-json-languageserver");
+    let plugin = LSPPlugin::new(lsp_process);
+
+    plugin.start_mainloop();
 }

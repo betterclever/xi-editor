@@ -8,6 +8,7 @@ authors = ["betterclever <paliwal.pranjal83@gmail.com>"]
 [dependencies]
 languageserver-types = "0"
 serde_json = "*"
+jsonrpc-lite = "*"
 
 [dependencies.xi-plugin-lib]
 path = "../plugin-lib"

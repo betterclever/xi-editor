@@ -19,7 +19,7 @@ fn parse_header(s: &str) -> Result<LSPHeader, ParseError> {
 }
 
 // Blocking call to read a message from the provided Buffered Reader
-pub fn parse_message<T: BufRead>(reader: &mut T) -> Result<Value, ParseError> {
+pub fn read_message<T: BufRead>(reader: &mut T) -> Result<Value, ParseError> {
     let mut buffer = String::new();
     let mut content_length : Option<usize> = None;
 
