@@ -1,6 +1,7 @@
 use std;
 use std::io::{BufRead};
 use serde_json::value::Value;
+use serde_json;
 
 use types::{LSPHeader, ParseError};
 
@@ -19,7 +20,7 @@ fn parse_header(s: &str) -> Result<LSPHeader, ParseError> {
 }
 
 // Blocking call to read a message from the provided Buffered Reader
-pub fn read_message<T: BufRead>(reader: &mut T) -> Result<Value, ParseError> {
+pub fn read_message<T: BufRead>(reader: &mut T) -> Result<String, ParseError> {
     let mut buffer = String::new();
     let mut content_length : Option<usize> = None;
 
@@ -43,6 +44,6 @@ pub fn read_message<T: BufRead>(reader: &mut T) -> Result<Value, ParseError> {
     let mut body_buffer = vec![0; content_length];
     reader.read_exact(&mut body_buffer)?;
 
-    let body = String::from_utf8(body_buffer);
-    Ok(serde_json::from_str::<Value>(&body)?)
+    let body = String::from_utf8(body_buffer)?;
+    Ok(body)
 }

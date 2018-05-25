@@ -7,6 +7,7 @@ pub enum LSPHeader {
 }
 
 // Error Types
+#[derive(Debug)]
 pub enum ParseError {
     IO(std::io::Error),
     ParseInt(std::num::ParseIntError),
