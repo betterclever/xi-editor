@@ -1,11 +1,10 @@
 extern crate xi_lsp_lib;
-
-use xi_lsp_lib::{LSPPlugin, start_language_server};
+use xi_lsp_lib::{LSPPlugin, start_mainloop};
 
 fn main() {
 
-    let lsp_process = start_language_server("vscode-json-languageserver");
-    let plugin = LSPPlugin::new(lsp_process);
-
-    plugin.start_mainloop();
+    let mut plugin = LSPPlugin::new("vscode-json-languageserver",&["--stdio"]);
+    start_mainloop(&mut plugin);
+    
 }
+

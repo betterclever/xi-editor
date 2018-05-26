@@ -1,5 +1,5 @@
 [package]
-name = "json_lsp_plugin"
+name = "json-lsp-plugin"
 version = "0.1.0"
 authors = ["betterclever <paliwal.pranjal83@gmail.com>"]
 

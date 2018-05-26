@@ -9,7 +9,7 @@ pub enum LSPHeader {
 // Error Types
 #[derive(Debug)]
 pub enum ParseError {
-    IO(std::io::Error),
+    Io(std::io::Error),
     ParseInt(std::num::ParseIntError),
     Utf8(std::string::FromUtf8Error),
     Json(serde_json::Error),

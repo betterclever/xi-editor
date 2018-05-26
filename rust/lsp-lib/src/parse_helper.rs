@@ -12,7 +12,7 @@ const HEADER_CONTENT_TYPE: &'static str = "content-type";
 fn parse_header(s: &str) -> Result<LSPHeader, ParseError> {
     let split: Vec<String> = s.split(": ").map(|s| s.trim().to_lowercase()).collect();
     if split.len() != 2 { return Err(ParseError::Unknown("Malformed".to_string())) };
-    match &(split[0]) {
+    match split[0].as_ref() {
         HEADER_CONTENT_TYPE => Ok(LSPHeader::ContentType),
         HEADER_CONTENT_LENGTH => Ok(LSPHeader::ContentLength(usize::from_str_radix(&split[1], 10)?)),
         _ => Err(ParseError::Unknown("Unknown parse error occured".to_string()))
