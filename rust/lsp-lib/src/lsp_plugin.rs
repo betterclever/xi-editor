@@ -15,13 +15,15 @@ use std::io::{BufWriter, BufReader};
 use std::collections::HashMap;
 
 pub struct LSPPlugin {
-    language_server_ref: Arc<Mutex<LanguageServer>>
+    language_server_ref: Arc<Mutex<LanguageServer>>,
+    file_extensions: Vec<String>
 }
 
 impl Clone for LSPPlugin {
     fn clone(&self) -> Self {
         LSPPlugin {
-            language_server_ref: self.language_server_ref.clone()
+            language_server_ref: self.language_server_ref.clone(),
+            file_extensions: self.file_extensions.clone()
         }
     }
 }
@@ -42,7 +44,8 @@ impl LSPPlugin {
         let writer = Box::new(BufWriter::new(process.stdin.take().unwrap()));
 
         let plugin = LSPPlugin {
-            language_server_ref : Arc::new(Mutex::new(LanguageServer::new(writer)))
+            language_server_ref : Arc::new(Mutex::new(LanguageServer::new(writer))),
+            file_extensions: vec!["json".to_string()]
         };
 
         {
@@ -114,6 +117,15 @@ impl Plugin for LSPPlugin {
 
     fn new_view(&mut self, view: &mut View<Self::Cache>) {
         eprintln!("new view {}", view.get_id());
+
+        let name = view.get_path();
+    
+        if let Some(path) = name {
+            let extension = path.extension().unwrap().to_str().unwrap().to_string();
+            if self.file_extensions.contains(&extension) {
+                eprintln!("json file opened");
+            }
+        }
     }
 
     fn config_changed(&mut self, _view: &mut View<Self::Cache>, _changes: &ConfigTable) {}
