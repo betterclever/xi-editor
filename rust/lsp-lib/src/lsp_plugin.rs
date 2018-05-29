@@ -32,6 +32,9 @@ impl LSPPlugin {
 
     pub fn new(command: &str, arguments: &[&str]) -> Self {
 
+        eprintln!("command: {}", command);
+        eprintln!("arguments: {:?}", arguments);
+
         let mut process = Command::new(command)
             .args(arguments)
             .stdin(Stdio::piped())
@@ -40,6 +43,7 @@ impl LSPPlugin {
             .expect("Error Occurred");
 
         let child_id = Some(process.id());
+        eprintln!("child_id: {}", child_id.unwrap());
 
         let writer = Box::new(BufWriter::new(process.stdin.take().unwrap()));
 
