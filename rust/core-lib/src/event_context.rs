@@ -18,6 +18,8 @@ use std::cell::RefCell;
 use std::iter;
 use std::path::Path;
 use std::time::{Duration, Instant};
+use std::fs::File;
+use std::io::prelude::*;
 
 use serde_json::{self, Value};
 
@@ -29,7 +31,8 @@ use xi_trace::trace_block;
 
 use rpc::{EditNotification, EditRequest, LineRange, Position as ClientPosition};
 use plugins::rpc::{ClientPluginInfo, PluginBufferInfo, PluginNotification,
-                   PluginRequest, PluginUpdate, CorePosition, Hover};
+                   PluginRequest, PluginUpdate, CorePosition,PluginPosition,
+                   Definition, Hover};
 
 use styles::ThemeStyleMap;
 use config::{BufferItems, Table};
@@ -138,7 +141,10 @@ impl<'a> EventContext<'a> {
             SpecialEvent::RequestLines(LineRange { first, last }) =>
                 self.do_request_lines(first as usize, last as usize),
             SpecialEvent::RequestHover{ request_id, position } =>
-                self.do_request_hover(request_id, position)
+                self.do_request_definition(request_id, position),
+            SpecialEvent::RequestDefinition { request_id, position } => {
+                self.do_request_definition(request_id, position)
+            }
         }
     }
 
@@ -177,6 +183,7 @@ impl<'a> EventContext<'a> {
                                                         self.view_id, &key, &value),
             RemoveStatusItem { key } => self.client.remove_status_item(self.view_id, &key),
             ShowHover { request_id, result, rev } => self.do_show_hover(request_id, result, rev),
+            HandleDefinition { request_id, result, rev } => self.do_handle_definition(request_id, result, rev),
         };
         self.after_edit(&plugin.to_string());
         self.render_if_needed();
@@ -281,6 +288,27 @@ impl<'a> EventContext<'a> {
                              ed.get_layers().get_merged(), ed.is_pristine())
     }
 }
+
+// TODO: Move somewhere else
+fn offset_of_line_col_utf16(rope: &mut Rope, line: usize, col: usize) -> usize {
+    let line_utf16_offset = rope.convert_metrics::<LinesMetric, Utf16CodeUnitsMetric>(line);
+    let utf16_offset = line_utf16_offset + col;
+    rope.convert_metrics::<Utf16CodeUnitsMetric, BaseMetric>(utf16_offset)
+}
+
+fn offset_of_line_col_utf8(rope: &mut Rope, line: usize, col: usize) -> usize {
+    let line_offset = rope.offset_of_line(line);
+    line_offset + col
+}
+
+fn plugin_position_to_offset(rope: &mut Rope, plugin_position: &PluginPosition) -> usize {
+    match *plugin_position {
+        PluginPosition::Utf8Offset { offset } => offset,
+        PluginPosition::Utf16LineCol { line, col } => offset_of_line_col_utf16(rope, line, col),
+        PluginPosition::Utf8LineCol { line, col } => offset_of_line_col_utf8(rope, line, col)
+    }
+}
+
 
 /// Helpers related to specific commands.
 ///
@@ -429,11 +457,46 @@ impl<'a> EventContext<'a> {
         }
     }
 
+    fn do_request_definition(&mut self, request_id: usize, position: Option<ClientPosition>) {
+        if let Some(position) = self.get_resolved_position(position) {
+            self.with_each_plugin(|p| p.get_definition(self.view_id, request_id, &position))
+        }
+    }
+
     fn do_show_hover(&mut self, request_id: usize, hover: Result<Hover, RemoteError>, _rev: u64) {
         match hover {
             Ok(hover) => {
                 // TODO: Get Range from hover here and use it to highlight text
                 self.client.show_hover(self.view_id, request_id, hover.content)
+            },
+            Err(err) => eprintln!("Hover Response from Client Error {:?}", err)
+        }
+    }
+
+    fn do_handle_definition(&mut self, request_id: usize, definition: Result<Definition, RemoteError>, _rev: u64) {
+        let _t = trace_block("definition handling", &["LSP"]);
+        eprintln!("definition: {:?}", definition );
+        match definition {
+            Ok(definition) => {
+                let s: Vec<String> = definition.locations.iter().map(|l| {
+                    //eprintln!("Location: {:?}", l);    
+                    let path = &l.file_uri;
+                    let mut f = File::open(path).expect("Can't find file");
+
+                    let mut contents = String::new();
+                    f.read_to_string(&mut contents).expect("can't read file");
+
+                    let mut rope = Rope::from(&contents);
+                    //eprintln!("contents: {:?}", rope);
+                    let start = plugin_position_to_offset(&mut rope, &l.range.start);
+                    let end = plugin_position_to_offset(&mut rope, &l.range.end);
+
+                    let s = rope.slice_to_string(start, end);
+                    eprintln!("Definition: {}", s);
+                    s
+                }).collect();
+
+                eprintln!("Defs {:?}", s);
             },
             Err(err) => eprintln!("Hover Response from Client Error {:?}", err)
         }

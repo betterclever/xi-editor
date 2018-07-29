@@ -14,7 +14,7 @@
 
 //! A proxy for the methods on Core
 use xi_core::internal::plugins::PluginId;
-use xi_core::plugin_rpc::Hover;
+use xi_core::plugin_rpc::{Hover, Definition};
 use xi_core::ViewId;
 use xi_rpc::{RpcCtx, RpcPeer, RemoteError};
 
@@ -81,5 +81,23 @@ impl CoreProxy {
         });
 
         self.peer.send_rpc_notification("show_hover", &params);
+    }
+
+    pub fn resolve_definition(
+        &mut self,
+        view_id: ViewId,
+        request_id: usize,
+        result: Result<Definition, RemoteError>,
+        rev: u64,
+    ) {
+        let params = json!({
+            "plugin_id": self.plugin_id,
+            "rev": rev,
+            "request_id": request_id,
+            "result": result,
+            "view_id": view_id
+        });
+
+        self.peer.send_rpc_notification("handle_definition", &params);
     }
 }

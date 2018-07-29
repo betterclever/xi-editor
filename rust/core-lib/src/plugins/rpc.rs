@@ -110,6 +110,7 @@ pub enum HostNotification {
     NewBuffer { buffer_info: Vec<PluginBufferInfo> },
     DidClose { view_id: ViewId },
     GetHover { view_id: ViewId, request_id: usize, position: CorePosition },
+    GetDefinition { view_id: ViewId, request_id: usize, position: CorePosition },
     Shutdown(EmptyStruct),
     TracingConfig {enabled: bool},
 }
@@ -187,12 +188,12 @@ pub enum PluginNotification {
     UpdateStatusItem { key: String, value: String  },
     RemoveStatusItem { key: String },
     ShowHover { request_id: usize, result: Result<Hover, RemoteError>, rev: u64 },
+    HandleDefinition { request_id: usize, result: Result<Definition, RemoteError>, rev: u64 },
 }
 
 /// Range expressed in terms of PluginPosition. Meant to be sent from
 /// plugin to core.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
 pub struct Range {
     pub start: PluginPosition,
     pub end: PluginPosition
@@ -200,16 +201,27 @@ pub struct Range {
 
 /// Hover Item sent from Plugin to Core
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
 pub struct Hover {
     pub content: String,
     pub range: Option<Range>
 }
 
+/// Definition Item sent from Plugin to Core
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Definition {
+    pub locations: Vec<Location>,
+}
+
+/// Represents location in a file
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Location {
+    pub file_uri: PathBuf,
+    pub range: Range,
+}
+
 /// Plugins are sent locations in multiple formats to facilitate
 /// all actual conversion at only one place.
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
 pub struct CorePosition {
     /// UTF-8 Offset
     pub offset: usize,

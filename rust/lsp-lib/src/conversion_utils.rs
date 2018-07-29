@@ -16,11 +16,11 @@
 //! and vice-versa
 
 use lsp_types::*;
+use types::{Definition, LanguageResponseError};
 use xi_plugin_lib::{
-    Cache, Error as PluginLibError, Hover as CoreHover,
-    Range as CoreRange, PluginPosition, View
+    Cache, Definition as CoreDefinition, Error as PluginLibError, Hover as CoreHover,
+    Location as CoreLocation, PluginPosition, Range as CoreRange, View,
 };
-use types::LanguageResponseError;
 
 pub(crate) fn marked_string_to_string(marked_string: &MarkedString) -> String {
     match *marked_string {
@@ -77,7 +77,6 @@ pub(crate) fn get_position_of_offset<C: Cache>(
     })
 }
 
-
 pub(crate) fn plugin_position_from_position(position: Position) -> PluginPosition {
     PluginPosition::Utf16LineCol {
         line: position.line as usize,
@@ -96,5 +95,23 @@ pub(crate) fn core_hover_from_hover(hover: Hover) -> Result<CoreHover, LanguageR
     Ok(CoreHover {
         content: markdown_from_hover_contents(hover.contents)?,
         range: hover.range.map(|range| core_range_from_range(range)),
+    })
+}
+
+pub(crate) fn core_location_from_location(location: &Location) -> CoreLocation {
+    CoreLocation {
+        file_uri: location.uri.to_file_path().unwrap(),
+        range: core_range_from_range(location.range)
+    }
+}
+
+pub(crate) fn core_definition_from_definition(
+    definition: Definition,
+) -> Result<CoreDefinition, LanguageResponseError> {
+    Ok(CoreDefinition {
+        locations: match definition {
+            Definition::Location(location) => vec![core_location_from_location(&location)],
+            Definition::Locations(locations) => locations.iter().map(core_location_from_location).collect()
+        },
     })
 }

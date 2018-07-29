@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use jsonrpc_lite::Error as JsonRpcError;
+use lsp_types::Location;
 use language_server_client::LanguageServerClient;
 use serde_json;
 use serde_json::Value;
@@ -145,4 +146,11 @@ impl Into<RemoteError> for LanguageResponseError {
                     RemoteError::custom(2, "language server error occured", Some(Value::String(error)))
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum Definition {
+    Location(Location),
+    Locations(Vec<Location>)
 }

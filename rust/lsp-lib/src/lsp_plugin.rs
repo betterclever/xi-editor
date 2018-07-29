@@ -22,7 +22,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
-use types::{Config, LanguageResponseError};
+use types::{Config, Definition, LanguageResponseError};
 use url::Url;
 use utils::*;
 use xi_core::ConfigTable;
@@ -173,22 +173,46 @@ impl Plugin for LspPlugin {
         };
 
         self.with_language_server_for_view(view, |ls_client| {
-                ls_client.request_hover(
-                    view_id,
-                position_ls,
-                    move |ls_client, result| {
-                        let res = result
-                            .map_err(|e| LanguageResponseError::LanguageServerError(format!("{:?}", e)))
-                            .and_then(|h| {
-                                let hover: Option<Hover> = serde_json::from_value(h).unwrap();
-                                hover.ok_or(LanguageResponseError::NullResponse)
-                                    .and_then(core_hover_from_hover)
-                            })
-                            .map_err(|e| e.into());
-                        ls_client.core.display_hover(view_id, request_id, res, rev);
-                    },
-                );
+            ls_client.request_hover(view_id, position_ls, move |ls_client, result| {
+                    let res = result
+                        .map_err(|e| LanguageResponseError::LanguageServerError(format!("{:?}", e)))
+                        .and_then(|h| {
+                            let hover: Option<Hover> = serde_json::from_value(h).unwrap();
+                            hover.ok_or(LanguageResponseError::NullResponse)
+                                .and_then(core_hover_from_hover)
+                        })
+                        .map_err(|e| e.into());
+                    ls_client.core.display_hover(view_id, request_id, res, rev);
+                },
+            );
         });
+    }
+
+    fn get_definition(&mut self, view: &mut View<Self::Cache>, request_id: usize, position: CorePosition) {
+
+        let view_id = view.get_id();
+        let rev = view.rev;
+        let position_ls = Position {
+            line: position.line as u64,
+            character: position.col_utf16 as u64
+        };
+
+        self.with_language_server_for_view(view, |ls_client| {
+            ls_client.request_definition( view_id, position_ls, move |ls_client, result| {
+                    let res = result
+                        .map_err(|e| LanguageResponseError::LanguageServerError(format!("{:?}", e)))
+                        .and_then(|h| {
+                            eprintln!("DEF - Raw Json: {}", h);
+                            let definition: Option<Definition> = serde_json::from_value(h).unwrap();
+                            definition.ok_or(LanguageResponseError::NullResponse)
+                                .and_then(core_definition_from_definition)
+                        })
+                        .map_err(|e| e.into());
+                    ls_client.core.resolve_definition(view_id, request_id, res, rev);
+                },
+            );
+        });
+
     }
 }
 

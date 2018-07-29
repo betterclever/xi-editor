@@ -72,6 +72,7 @@ pub(crate) enum SpecialEvent {
     DebugPrintSpans,
     Resize(Size),
     RequestLines(LineRange),
+    RequestDefinition { request_id: usize, position: Option<Position> },
     RequestHover { request_id: usize, position: Option<Position> },
 }
 
@@ -228,6 +229,8 @@ impl From<EditNotification> for EventDomain {
             SelectionForReplace => ViewEvent::SelectionForReplace.into(),
             RequestHover { request_id, position } =>
                 SpecialEvent::RequestHover { request_id, position }.into(),
+            RequestDefinition { request_id, position } => 
+                SpecialEvent::RequestDefinition { request_id, position }.into(),
         }
     }
 }
