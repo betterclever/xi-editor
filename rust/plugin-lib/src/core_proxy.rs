@@ -14,7 +14,7 @@
 
 //! A proxy for the methods on Core
 use xi_core::internal::plugins::PluginId;
-use xi_core::plugin_rpc::{Hover, Location};
+use xi_core::plugin_rpc::{Hover, Location, CompletionResponse};
 use xi_core::ViewId;
 use xi_rpc::{RemoteError, RpcCtx, RpcPeer};
 
@@ -84,7 +84,7 @@ impl CoreProxy {
     }
 
     pub fn handle_definition(
-        &mut self,
+        &self,
         view_id: ViewId,
         request_id: usize,
         result: Result<Vec<Location>, RemoteError>,
@@ -97,6 +97,18 @@ impl CoreProxy {
         });
 
         self.peer.send_rpc_notification("handle_definition", &params);
+    }
+
+    pub fn completions(&self, view_id: ViewId, request_id: usize, response: Result<CompletionResponse, RemoteError>)
+    {
+        let params = json!({
+            "plugin_id": self.plugin_id,
+            "view_id": view_id,
+            "request_id": request_id,
+            "response": response,
+        });
+
+        self.peer.send_rpc_notification("completions", &params);
     }
 
     pub fn schedule_idle(&mut self, view_id: ViewId) {

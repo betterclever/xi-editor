@@ -233,6 +233,34 @@ impl Plugin for LspPlugin {
         });
     }
 
+    fn completions(&mut self, view: &mut View<Self::Cache>, request_id: usize, pos: usize) {
+        let view_id = view.get_id();
+        let position_ls = get_position_of_offset(view, pos);
+        let uri = bail!(get_view_uri(view), view.get_id());
+
+        self.with_language_server_for_view_id(view.get_id(), |ls_client| match position_ls {
+            Ok(position) => ls_client.request_completions(uri, position, false, None, move |ls_client, result| {
+                let res = result
+                    .map_err(|e| LanguageResponseError::LanguageServerError(format!("{:?}", e)))
+                    .and_then(|d| {
+                        let completion: Option<CompletionResponse> = serde_json::from_value(d).unwrap();
+                        completion.ok_or(LanguageResponseError::NullResponse)
+                    });
+
+                ls_client
+                    .result_queue
+                    .push_result(request_id, LspResponse::Completion(res));
+                ls_client.core.schedule_idle(view_id);
+            }),
+            Err(err) => {
+                ls_client
+                    .result_queue
+                    .push_result(request_id, LspResponse::Completion(Err(err.into())));
+                ls_client.core.schedule_idle(view_id);
+            }
+        });
+    }
+
     fn idle(&mut self, view_id: ViewId, plugin_context: &mut PluginContext<Self::Cache>) {
         let result = self.result_queue.pop_result();
         
@@ -250,9 +278,17 @@ impl Plugin for LspPlugin {
                     let res = res
                         .and_then(|d| core_definition_from_definition(plugin_context, d))
                         .map_err(|e| e.into());
-                    self.with_language_server_for_view_id(view_id, |ls_client| {
-                        
+                    self.with_language_server_for_view_id(view_id, |ls_client| {         
                         ls_client.core.handle_definition(view_id, request_id, res)
+                    });
+                },
+                LspResponse::Completion(res) => {
+                    let res = res
+                        .and_then(|c| core_completions_from_completions(plugin_context, c))
+                        .map_err(|e| e.into());
+                    
+                    self.with_language_server_for_view_id(view_id, |ls_client| {
+                        ls_client.core.handle_completion(view_id, request_id, res)
                     });
                 }
             }

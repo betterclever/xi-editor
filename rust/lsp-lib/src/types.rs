@@ -185,5 +185,6 @@ pub enum Definition {
 #[derive(Debug)]
 pub enum LspResponse {
     Hover(Result<Hover, LanguageResponseError>),
-    Definition(Result<Definition, LanguageResponseError>)
+    Definition(Result<Definition, LanguageResponseError>),
+    Completion(Result<CompletionResponse, LanguageResponseError>)
 }

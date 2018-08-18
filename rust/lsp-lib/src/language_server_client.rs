@@ -307,6 +307,31 @@ impl LanguageServerClient {
         let params = Params::from(serde_json::to_value(text_document_position_params).unwrap());
         self.send_request("textDocument/definition", params, Box::new(on_result))
     }
+
+    pub fn request_completions<CB>(
+        &mut self,
+        uri: Url,
+        position: Position,
+        is_invoked: bool,
+        trigger_character: Option<String>,
+        on_result: CB,
+    ) where
+        CB: 'static + Send + FnOnce(&mut LanguageServerClient, Result<Value, Error>), 
+    {
+        let completition_params = CompletionParams {
+            text_document: TextDocumentIdentifier { uri },
+            position,
+            context: Some(CompletionContext {
+                trigger_kind: if is_invoked { 
+                    CompletionTriggerKind::Invoked 
+                } else { CompletionTriggerKind::TriggerCharacter },
+                trigger_character
+            }),
+        };
+
+        let params = Params::from(serde_json::to_value(completition_params).unwrap());
+        self.send_request("textDocument/completion", params, Box::new(on_result))
+    }
 }
 
 /// Helper methods to query the capabilities of the Language Server before making

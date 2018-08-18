@@ -19,11 +19,12 @@ use lsp_types::*;
 use std::fs::File;
 use std::io::Read;
 use types::{Definition, LanguageResponseError};
-use xi_core::ViewId;
-use xi_plugin_lib::{
-    Cache, Error as PluginLibError, Hover as CoreHover, Location as CoreLocation, PluginContext,
-    Range as CoreRange, View,
+use xi_core::plugin_rpc::{
+    CompletionItem as CoreCompleitionItem, CompletionResponse as CoreCompletionResponse,
+    Hover as CoreHover, Location as CoreLocation, Range as CoreRange,
 };
+use xi_core::ViewId;
+use xi_plugin_lib::{Cache, Error as PluginLibError, PluginContext, View};
 use xi_rope::rope::{BaseMetric, LinesMetric, Utf16CodeUnitsMetric};
 use xi_rope::Rope;
 
@@ -135,7 +136,7 @@ fn offset_of_position_from_rope(rope: &mut Rope, position: Position) -> usize {
     let utf16_offset = line_utf16_offset + (position.character as usize);
     rope.convert_metrics::<Utf16CodeUnitsMetric, BaseMetric>(utf16_offset)
 }
- 
+
 pub(crate) fn core_location_from_location<C: Cache>(
     plugin_context: &mut PluginContext<C>,
     location: &Location,
@@ -148,13 +149,13 @@ pub(crate) fn core_location_from_location<C: Cache>(
             let start = offset_of_position(view, location.range.start)?;
             let end = offset_of_position(view, location.range.end)?;
             (start, end)
-        },
+        }
         None => {
             let mut f = File::open(&path)?;
 
             let mut contents = String::new();
             f.read_to_string(&mut contents)?;
-            
+
             let mut rope = Rope::from(contents);
 
             let start = offset_of_position_from_rope(&mut rope, location.range.start);
@@ -184,5 +185,47 @@ pub(crate) fn core_definition_from_definition<C: Cache>(
                 .collect();
             locations?
         }
+    })
+}
+
+pub(crate) fn documentation_to_string(documentation: Documentation) -> String {
+    match documentation {
+        Documentation::String(s) => s,
+        Documentation::MarkupContent(m) => m.value
+    }
+}
+
+pub(crate) fn core_completion_item_from_completion_item<C: Cache>(
+    plugin_context: &mut PluginContext<C>,
+    completion_item: &CompletionItem
+) -> Result<CoreCompleitionItem, LanguageResponseError> {
+    Ok(CoreCompleitionItem {
+        id: 0,
+        label: completion_item.label,
+        detail: completion_item.detail,
+        documentation: completion_item.documentation.map(documentation_to_string),
+        sort_text: completion_item.sort_text,
+        filter_text: completion_item.filter_text,
+        edit: None
+    })
+}
+
+pub(crate) fn core_completions_from_completions<C: Cache>(
+    plugin_context: &mut PluginContext<C>,
+    completion_response: CompletionResponse,
+) -> Result<CoreCompletionResponse, LanguageResponseError> {
+    let (is_incomplete, completion_items) = match completion_response {
+        CompletionResponse::List(completion_list) => (completion_list.is_incomplete, completion_list.items),
+        CompletionResponse::Array(completions) => (false, completions),
+    };
+
+    let items: Result<Vec<CoreCompleitionItem>, LanguageResponseError> = completion_items.iter().map(|c| {
+        core_completion_item_from_completion_item(plugin_context, c)
+    }).collect();
+
+    Ok(CoreCompletionResponse {
+        is_incomplete,
+        can_resolve: true,
+        items: items?
     })
 }
